@@ -293,7 +293,7 @@ document.getElementById('pager').addEventListener('scroll',updDots);
 function refreshApps(){appsLoaded=false;}
 var dTaps=0,dTimer=null;
 function tapDiag(){dTaps++;clearTimeout(dTimer);dTimer=setTimeout(function(){dTaps=0;},800);
-if(dTaps>=3){dTaps=0;var t='Sin datos';try{t=Android.diag();}catch(e){}var d=document.getElementById('diag');d.textContent=t+'\n\n(Toca aqui para cerrar)';d.style.display='block';}}
+if(dTaps>=3){dTaps=0;var t='Sin datos';try{t=Android.diag();}catch(e){}var d=document.getElementById('diag');d.textContent=t+'\n\n(Toca aqui para cerrar)';try{Android.setWallpaper();}catch(e){}d.style.display='block';}}
 function setSpeed(v){document.getElementById('speed').textContent=v;}
 </script>
 </body>

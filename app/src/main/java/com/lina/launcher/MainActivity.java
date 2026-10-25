@@ -83,6 +83,34 @@ public class MainActivity extends Activity {
         web.loadUrl("file:///android_asset/index.html");
         setContentView(web);
         askLocation();
+        setLinaWallpaper(false);
+    }
+
+    /** Pone el fondo rosado de Lina en el launcher de fábrica (una vez por versión, o cuando se pida). */
+    private void setLinaWallpaper(boolean force) {
+        final android.content.SharedPreferences prefs = getSharedPreferences("lina", MODE_PRIVATE);
+        final int ver = 10;
+        if (!force && prefs.getInt("wallVer", 0) == ver) return;
+        new Thread(() -> {
+            String msg;
+            try {
+                java.io.InputStream in = getAssets().open("fondo-lina.png");
+                android.graphics.Bitmap bmp = android.graphics.BitmapFactory.decodeStream(in);
+                in.close();
+                android.app.WallpaperManager wm = android.app.WallpaperManager.getInstance(MainActivity.this);
+                if (Build.VERSION.SDK_INT >= 24) {
+                    wm.setBitmap(bmp, null, true, android.app.WallpaperManager.FLAG_SYSTEM | android.app.WallpaperManager.FLAG_LOCK);
+                } else {
+                    wm.setBitmap(bmp);
+                }
+                prefs.edit().putInt("wallVer", ver).apply();
+                msg = "Fondo de Lina puesto ✨";
+            } catch (Exception e) {
+                msg = "No se pudo poner el fondo: " + e.getMessage();
+            }
+            final String m = msg;
+            runOnUiThread(() -> android.widget.Toast.makeText(MainActivity.this, m, android.widget.Toast.LENGTH_LONG).show());
+        }).start();
     }
 
     private void askLocation() {
@@ -290,6 +318,11 @@ public class MainActivity extends Activity {
                     + "   Android: " + Build.VERSION.RELEASE
                     + "\nPantalla Lina abierta en proceso " + android.os.Process.myPid()
                     + "\n" + file;
+        }
+
+        @JavascriptInterface
+        public void setWallpaper() {
+            setLinaWallpaper(true);
         }
 
         @JavascriptInterface
