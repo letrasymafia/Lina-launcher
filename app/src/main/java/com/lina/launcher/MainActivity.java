@@ -271,6 +271,20 @@ public class MainActivity extends Activity {
 
     private class Bridge {
         @JavascriptInterface
+        public String diag() {
+            long ago = WatchService.lastCheck == 0 ? -1 : (System.currentTimeMillis() - WatchService.lastCheck) / 1000;
+            return "Servicio: " + (WatchService.running ? "SI" : "NO")
+                    + "\nUltima revision: hace " + ago + " s"
+                    + "\nAcceso de uso: " + (hasUsageAccess() ? "SI" : "NO")
+                    + "\nSobre otras apps: " + (Settings.canDrawOverlays(MainActivity.this) ? "SI" : "NO")
+                    + "\nLaunchers: " + WatchService.homesText
+                    + "\nApp al frente: " + WatchService.lastFront
+                    + "\nVeces que abrio Lina: " + WatchService.launches
+                    + "\nError: " + WatchService.lastError
+                    + "\nAndroid: " + Build.VERSION.RELEASE + " (" + Build.VERSION.SDK_INT + ")";
+        }
+
+        @JavascriptInterface
         public String getApps() {
             return buildAppsJson();
         }

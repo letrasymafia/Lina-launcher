@@ -26,6 +26,13 @@ import java.util.Set;
  */
 public class WatchService extends Service {
 
+    static volatile boolean running = false;
+    static volatile String lastFront = "-";
+    static volatile String homesText = "-";
+    static volatile String lastError = "-";
+    static volatile int launches = 0;
+    static volatile long lastCheck = 0;
+
     private final Handler handler = new Handler(Looper.getMainLooper());
     private final Set<String> homePackages = new HashSet<>();
     private long lastLaunch = 0;
@@ -67,6 +74,7 @@ public class WatchService extends Service {
         try {
             startForeground(77, b.build());
         } catch (Exception ignored) { }
+        running = true;
         loadHomePackages();
         handler.post(loop);
     }
@@ -78,6 +86,7 @@ public class WatchService extends Service {
 
     @Override
     public void onDestroy() {
+        running = false;
         handler.removeCallbacks(loop);
         super.onDestroy();
     }
@@ -99,6 +108,7 @@ public class WatchService extends Service {
             if (p.equals("android") || p.contains("resolver")) continue;
             homePackages.add(p);
         }
+        homesText = homePackages.toString();
     }
 
     private void check() {
@@ -115,10 +125,14 @@ public class WatchService extends Service {
                     front = e.getPackageName();
                 }
             }
+            lastCheck = System.currentTimeMillis();
+            if (front != null) lastFront = front;
             if (front == null) return;
             if (homePackages.isEmpty()) loadHomePackages();
             if (homePackages.contains(front)) openLina();
-        } catch (Exception ignored) { }
+        } catch (Exception ex) {
+            lastError = String.valueOf(ex);
+        }
     }
 
     private void openLina() {
@@ -130,6 +144,9 @@ public class WatchService extends Service {
                 | Intent.FLAG_ACTIVITY_NO_ANIMATION);
         try {
             startActivity(i);
-        } catch (Exception ignored) { }
+            launches++;
+        } catch (Exception ex) {
+            lastError = "launch: " + ex;
+        }
     }
 }

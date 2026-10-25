@@ -125,7 +125,7 @@ background:radial-gradient(ellipse at 50% 30%,#FFF6F9 0%,#FDE4EE 50%,#F8C9DA 100
 
     <div style="display: flex; flex-direction: column; gap: 14px">
       <div style="background: rgba(255,255,255,0.62); border: 1px solid rgba(232,170,196,0.8); border-radius: 26px; padding: 22px 24px; display: flex; flex-direction: column; gap: 4px; box-shadow: 0 8px 28px rgba(201,90,138,0.12)">
-        <p style="margin: 0; font-family: 'Great Vibes', cursive; font-size: 40px; line-height: 1.1; color: #8A2450">Hola, Lina</p>
+        <p style="margin: 0; font-family: 'Great Vibes', cursive; font-size: 40px; line-height: 1.1; color: #8A2450" onclick="tapDiag()">Hola, Lina</p>
         <p style="margin: 6px 0 0; font-size: 72px; font-weight: 600; line-height: 1; letter-spacing: -1px; color: #5E1636" id="clock">--:--</p>
         <p style="margin: 4px 0 0; font-size: 18px; font-weight: 500; color: #7A3354" id="date"></p>
       </div>
@@ -257,6 +257,7 @@ background:radial-gradient(ellipse at 50% 30%,#FFF6F9 0%,#FDE4EE 50%,#F8C9DA 100
     </button>
   </nav>
 </div>
+<div id="diag" onclick="this.style.display='none'" style="display:none;position:absolute;left:120px;top:90px;width:784px;z-index:80;background:#fff;border:2px solid #C2477D;border-radius:18px;padding:20px 24px;font:600 17px/1.5 'Quicksand',sans-serif;color:#5E1636;white-space:pre-wrap;box-shadow:0 10px 40px rgba(0,0,0,.25)"></div>
 <div id="drawer" role="dialog" aria-label="Mis aplicaciones">
 <header><h2>Mis aplicaciones</h2><button id="drawerClose" onclick="closeDrawer()">Volver</button></header>
 <div id="pager"></div>
@@ -290,6 +291,9 @@ function updDots(){var pager=document.getElementById('pager');var w=pager.client
 var ds=document.querySelectorAll('#dots i');for(var k=0;k<ds.length;k++){ds[k].className=(k===idx)?'on':'';}}
 document.getElementById('pager').addEventListener('scroll',updDots);
 function refreshApps(){appsLoaded=false;}
+var dTaps=0,dTimer=null;
+function tapDiag(){dTaps++;clearTimeout(dTimer);dTimer=setTimeout(function(){dTaps=0;},800);
+if(dTaps>=3){dTaps=0;var t='Sin datos';try{t=Android.diag();}catch(e){}var d=document.getElementById('diag');d.textContent=t+'\n\n(Toca aqui para cerrar)';d.style.display='block';}}
 function setSpeed(v){document.getElementById('speed').textContent=v;}
 </script>
 </body>
