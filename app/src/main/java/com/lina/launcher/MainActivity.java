@@ -8,6 +8,10 @@ import android.content.Context;
 import android.content.Intent;
 import android.content.pm.PackageManager;
 import android.content.pm.ResolveInfo;
+import android.graphics.Bitmap;
+import android.graphics.Canvas;
+import android.graphics.drawable.Drawable;
+import android.util.Base64;
 import android.location.Location;
 import android.location.LocationListener;
 import android.location.LocationManager;
@@ -23,6 +27,10 @@ import android.webkit.WebSettings;
 import android.webkit.WebView;
 import android.webkit.WebViewClient;
 
+import java.io.ByteArrayOutputStream;
+import java.text.Collator;
+import java.util.ArrayList;
+import java.util.Collections;
 import java.util.List;
 import java.util.Locale;
 
@@ -134,7 +142,62 @@ public class MainActivity extends Activity {
 
     @Override
     public void onBackPressed() {
-        // Es la pantalla de inicio: el botón atrás no hace nada aquí
+        // Es la pantalla de inicio: atrás solo cierra la lista de apps
+        if (web != null) web.evaluateJavascript("closeDrawer()", null);
+    }
+
+    @Override
+    protected void onNewIntent(Intent intent) {
+        super.onNewIntent(intent);
+        if (web != null) web.evaluateJavascript("refreshApps();closeDrawer()", null);
+    }
+
+    private static String iconToBase64(Drawable d) {
+        try {
+            int size = 96;
+            Bitmap b = Bitmap.createBitmap(size, size, Bitmap.Config.ARGB_8888);
+            Canvas c = new Canvas(b);
+            d.setBounds(0, 0, size, size);
+            d.draw(c);
+            ByteArrayOutputStream out = new ByteArrayOutputStream();
+            b.compress(Bitmap.CompressFormat.PNG, 100, out);
+            b.recycle();
+            return Base64.encodeToString(out.toByteArray(), Base64.NO_WRAP);
+        } catch (Exception e) {
+            return "";
+        }
+    }
+
+    private static String jsonEscape(String v) {
+        StringBuilder sb = new StringBuilder();
+        for (char ch : v.toCharArray()) {
+            if (ch == '"' || ch == '\\') sb.append('\\').append(ch);
+            else if (ch < 0x20) sb.append(' ');
+            else sb.append(ch);
+        }
+        return sb.toString();
+    }
+
+    private String buildAppsJson() {
+        PackageManager pm = getPackageManager();
+        Intent main = new Intent(Intent.ACTION_MAIN);
+        main.addCategory(Intent.CATEGORY_LAUNCHER);
+        List<ResolveInfo> list = new ArrayList<>(pm.queryIntentActivities(main, 0));
+        final Collator col = Collator.getInstance();
+        Collections.sort(list, (a, b) -> col.compare(String.valueOf(a.loadLabel(pm)), String.valueOf(b.loadLabel(pm))));
+        StringBuilder sb = new StringBuilder("[");
+        boolean first = true;
+        for (ResolveInfo ri : list) {
+            if (ri.activityInfo.packageName.equals(getPackageName())) continue;
+            if (!first) sb.append(',');
+            first = false;
+            sb.append("{\"l\":\"").append(jsonEscape(String.valueOf(ri.loadLabel(pm))))
+              .append("\",\"p\":\"").append(jsonEscape(ri.activityInfo.packageName))
+              .append("\",\"c\":\"").append(jsonEscape(ri.activityInfo.name))
+              .append("\",\"i\":\"").append(iconToBase64(ri.loadIcon(pm)))
+              .append("\"}");
+        }
+        return sb.append(']').toString();
     }
 
     // ---------- Abrir aplicaciones ----------
@@ -191,6 +254,21 @@ public class MainActivity extends Activity {
     }
 
     private class Bridge {
+        @JavascriptInterface
+        public String getApps() {
+            return buildAppsJson();
+        }
+
+        @JavascriptInterface
+        public void launch(String pkg, String cls) {
+            runOnUiThread(() -> {
+                Intent i = new Intent(Intent.ACTION_MAIN);
+                i.addCategory(Intent.CATEGORY_LAUNCHER);
+                i.setClassName(pkg, cls);
+                if (!startSafe(i)) openPackage(pkg);
+            });
+        }
+
         @JavascriptInterface
         public void openApps() {
             runOnUiThread(MainActivity.this::openApps);

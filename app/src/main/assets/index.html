@@ -50,6 +50,23 @@ background:var(--hi) 0 0/19px 17px,var(--hi) 9px 11px/31px 23px;
 .dia{position:absolute;width:16px;height:14px;pointer-events:none;animation:dia 1.5s ease-in-out infinite}
 .dock-btn:active{transform:scale(.94)}
 
+
+#drawer{position:absolute;left:24px;top:24px;right:24px;bottom:24px;z-index:50;display:none;flex-direction:column;border-radius:14px;overflow:hidden;
+background:radial-gradient(ellipse at 50% 30%,#FFF6F9 0%,#FDE4EE 50%,#F8C9DA 100%);box-shadow:0 0 0 1.5px #D9B45E;font-family:'Quicksand',system-ui,sans-serif;animation:dIn .22s ease-out}
+@keyframes dIn{from{opacity:0;transform:scale(.97)}to{opacity:1;transform:scale(1)}}
+#drawer header{display:flex;align-items:center;justify-content:space-between;padding:14px 22px 6px}
+#drawer h2{margin:0;font-family:'Great Vibes',cursive;font-weight:400;font-size:38px;color:#8A2450}
+#drawerClose{height:48px;padding:0 20px;border:none;border-radius:24px;background:#C2477D;color:#fff;font:700 16px 'Quicksand',sans-serif;box-shadow:0 6px 18px rgba(194,71,125,.3)}
+#pager{flex:1 1 auto;display:flex;overflow-x:auto;overflow-y:hidden;scroll-snap-type:x mandatory;scrollbar-width:none;-webkit-overflow-scrolling:touch}
+#pager::-webkit-scrollbar{display:none}
+.page{flex:0 0 100%;scroll-snap-align:start;box-sizing:border-box;padding:8px 26px 4px;display:grid;grid-template-columns:repeat(6,minmax(0,1fr));grid-template-rows:repeat(3,minmax(0,1fr));gap:10px 12px}
+.app{border:none;background:rgba(255,255,255,.55);border:1px solid rgba(232,170,196,.8);border-radius:20px;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:6px;padding:6px;font-family:inherit;box-shadow:0 6px 18px rgba(201,90,138,.10);transition:transform .12s}
+.app:active{transform:scale(.93)}
+.app img{width:58px;height:58px;object-fit:contain}
+.app span{font-size:13px;font-weight:700;color:#5E1636;max-width:100%;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+#dots{display:flex;justify-content:center;gap:8px;padding:6px 0 12px}
+#dots i{width:9px;height:9px;border-radius:50%;background:#F0BCD2;transition:all .2s}
+#dots i.on{width:26px;border-radius:5px;background:#C2477D;box-shadow:0 0 6px rgba(255,255,255,.9)}
 </style>
 </head>
 <body>
@@ -214,7 +231,7 @@ background:var(--hi) 0 0/19px 17px,var(--hi) 9px 11px/31px 23px;
   </div>
 
   <nav aria-label="Aplicaciones" style="position: relative; display: grid; grid-template-columns: repeat(6, minmax(0, 1fr)); gap: 14px; background: rgba(255,255,255,0.55); border: 1px solid rgba(232,170,196,0.8); border-radius: 28px; padding: 12px 16px; box-shadow: 0 8px 28px rgba(201,90,138,0.12)">
-    <button class="dock-btn" onclick="act('openApps')" style="height: 74px; border: none; border-radius: 20px; background: transparent; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 6px; cursor: pointer; font-family: inherit">
+    <button class="dock-btn" onclick="openDrawer()" style="height: 74px; border: none; border-radius: 20px; background: transparent; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 6px; cursor: pointer; font-family: inherit">
       <span style="width: 44px; height: 44px; border-radius: 14px; background: linear-gradient(145deg, #F9C6D9, #E78DB2); display: flex; align-items: center; justify-content: center"><svg aria-hidden="true" width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#FFFFFF" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="7" height="7" rx="2"></rect><rect x="14" y="3" width="7" height="7" rx="2"></rect><rect x="3" y="14" width="7" height="7" rx="2"></rect><rect x="14" y="14" width="7" height="7" rx="2"></rect></svg></span>
       <span style="font-size: 13px; font-weight: 700; color: #5E1636">Apps</span>
     </button>
@@ -240,7 +257,11 @@ background:var(--hi) 0 0/19px 17px,var(--hi) 9px 11px/31px 23px;
     </button>
   </nav>
 </div>
-</div>
+<div id="drawer" role="dialog" aria-label="Mis aplicaciones">
+<header><h2>Mis aplicaciones</h2><button id="drawerClose" onclick="closeDrawer()">Volver</button></header>
+<div id="pager"></div>
+<div id="dots"></div>
+</div></div>
 <script>
 function fit(){var s=document.getElementById('stage');s.style.transform='scale('+(window.innerWidth/1024)+','+(window.innerHeight/600)+')';}
 window.addEventListener('resize',fit);fit();
@@ -252,6 +273,23 @@ document.getElementById('date').textContent=DIAS[d.getDay()]+', '+d.getDate()+' 
 tick();setInterval(tick,5000);
 function act(fn){try{if(window.Android&&Android[fn])Android[fn]();}catch(e){}}
 function media(a){try{if(window.Android)Android.media(a);}catch(e){}}
+
+var appsLoaded=false;
+function openDrawer(){var d=document.getElementById('drawer');if(!appsLoaded){buildApps();}d.style.display='flex';document.getElementById('pager').scrollLeft=0;updDots();}
+function closeDrawer(){var d=document.getElementById('drawer');if(d.style.display==='flex'){d.style.display='none';return true;}return false;}
+function buildApps(){var list=[];try{list=JSON.parse(Android.getApps());}catch(e){list=[];}
+var pager=document.getElementById('pager');pager.innerHTML='';var per=18;
+for(var i=0;i<list.length;i+=per){var pg=document.createElement('div');pg.className='page';
+list.slice(i,i+per).forEach(function(a){var b=document.createElement('button');b.className='app';
+b.onclick=function(){try{Android.launch(a.p,a.c);}catch(e){}};
+var im=document.createElement('img');im.alt='';if(a.i)im.src='data:image/png;base64,'+a.i;var sp=document.createElement('span');sp.textContent=a.l;
+b.appendChild(im);b.appendChild(sp);pg.appendChild(b);});pager.appendChild(pg);}
+var dots=document.getElementById('dots');dots.innerHTML='';var n=Math.max(1,Math.ceil(list.length/per));
+for(var k=0;k<n;k++){dots.appendChild(document.createElement('i'));}appsLoaded=list.length>0;updDots();}
+function updDots(){var pager=document.getElementById('pager');var w=pager.clientWidth||1;var idx=Math.round(pager.scrollLeft/w);
+var ds=document.querySelectorAll('#dots i');for(var k=0;k<ds.length;k++){ds[k].className=(k===idx)?'on':'';}}
+document.getElementById('pager').addEventListener('scroll',updDots);
+function refreshApps(){appsLoaded=false;}
 function setSpeed(v){document.getElementById('speed').textContent=v;}
 </script>
 </body>
