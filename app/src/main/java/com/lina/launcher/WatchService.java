@@ -31,6 +31,7 @@ public class WatchService extends Service {
     static volatile String homesText = "-";
     static volatile String lastError = "-";
     static volatile int launches = 0;
+    static volatile String lastEvents = "-";
     static volatile long lastCheck = 0;
 
     private final Handler handler = new Handler(Looper.getMainLooper());
@@ -116,20 +117,33 @@ public class WatchService extends Service {
             UsageStatsManager usm = (UsageStatsManager) getSystemService(Context.USAGE_STATS_SERVICE);
             if (usm == null) return;
             long now = System.currentTimeMillis();
-            UsageEvents events = usm.queryEvents(now - 6000, now);
+            UsageEvents events = usm.queryEvents(now - 20000, now);
             UsageEvents.Event e = new UsageEvents.Event();
             String front = null;
+            if (homePackages.isEmpty()) loadHomePackages();
+            String me = getPackageName();
+            long homeFg = 0, homeBg = 0, meFg = 0;
+            StringBuilder log = new StringBuilder();
             while (events.hasNextEvent()) {
                 events.getNextEvent(e);
-                if (e.getEventType() == UsageEvents.Event.MOVE_TO_FOREGROUND) {
-                    front = e.getPackageName();
+                int type = e.getEventType();
+                String pkg = e.getPackageName();
+                if (type != UsageEvents.Event.MOVE_TO_FOREGROUND && type != UsageEvents.Event.MOVE_TO_BACKGROUND) continue;
+                boolean fg = type == UsageEvents.Event.MOVE_TO_FOREGROUND;
+                if (fg) front = pkg;
+                if (homePackages.contains(pkg)) {
+                    if (fg) homeFg = e.getTimeStamp(); else homeBg = e.getTimeStamp();
+                } else if (pkg.equals(me) && fg) {
+                    meFg = e.getTimeStamp();
                 }
+                log.append(pkg.replace("com.", "")).append(fg ? "+" : "-").append("  ");
+                if (log.length() > 400) log.delete(0, log.length() - 400);
             }
             lastCheck = System.currentTimeMillis();
+            if (log.length() > 0) lastEvents = log.toString();
             if (front != null) lastFront = front;
-            if (front == null) return;
-            if (homePackages.isEmpty()) loadHomePackages();
-            if (homePackages.contains(front)) openLina();
+            // El launcher de fábrica está abierto (entró y no ha salido) y es más nuevo que Lina
+            if (homeFg > 0 && homeFg >= homeBg && homeFg > meFg) openLina();
         } catch (Exception ex) {
             lastError = String.valueOf(ex);
         }

@@ -150,7 +150,11 @@ public class MainActivity extends Activity {
         try {
             AppOpsManager ops = (AppOpsManager) getSystemService(Context.APP_OPS_SERVICE);
             int mode = ops.checkOpNoThrow(AppOpsManager.OPSTR_GET_USAGE_STATS, Process.myUid(), getPackageName());
-            return mode == AppOpsManager.MODE_ALLOWED;
+            if (mode == AppOpsManager.MODE_ALLOWED) return true;
+            if (mode == AppOpsManager.MODE_DEFAULT
+                    && checkSelfPermission(Manifest.permission.PACKAGE_USAGE_STATS) == PackageManager.PERMISSION_GRANTED) return true;
+            // Si el servicio ya logra ver qué app está al frente, el permiso funciona
+            return !"-".equals(WatchService.lastFront);
         } catch (Exception e) {
             return false;
         }
@@ -280,6 +284,7 @@ public class MainActivity extends Activity {
                     + "\nLaunchers: " + WatchService.homesText
                     + "\nApp al frente: " + WatchService.lastFront
                     + "\nVeces que abrio Lina: " + WatchService.launches
+                    + "\nEventos: " + WatchService.lastEvents
                     + "\nError: " + WatchService.lastError
                     + "\nAndroid: " + Build.VERSION.RELEASE + " (" + Build.VERSION.SDK_INT + ")";
         }
