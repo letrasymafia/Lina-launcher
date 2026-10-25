@@ -1,0 +1,5 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="guardian_name">Lina siempre al inicio</string>
+    <string name="guardian_desc">Cuando la pantalla abre el inicio de fábrica, muestra la pantalla de Lina en su lugar. Desactívalo aquí para volver al inicio original.</string>
+</resources>

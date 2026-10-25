@@ -2,6 +2,7 @@ package com.lina.launcher;
 
 import android.Manifest;
 import android.app.Activity;
+import android.app.AlertDialog;
 import android.content.ActivityNotFoundException;
 import android.content.Context;
 import android.content.Intent;
@@ -28,6 +29,7 @@ import java.util.Locale;
 public class MainActivity extends Activity {
 
     private WebView web;
+    private static boolean askedGuardian = false;
     private LocationManager locationManager;
     private final LocationListener locationListener = new LocationListener() {
         @Override
@@ -105,6 +107,29 @@ public class MainActivity extends Activity {
             if (locationManager != null) locationManager.removeUpdates(locationListener);
         } catch (Exception ignored) { }
         super.onDestroy();
+    }
+
+    @Override
+    protected void onResume() {
+        super.onResume();
+        if (!askedGuardian && !guardianEnabled()) {
+            askedGuardian = true;
+            new AlertDialog.Builder(this)
+                    .setTitle("Dejar a Lina como inicio")
+                    .setMessage("Para que la casita siempre muestre esta pantalla, activa \"Lina siempre al inicio\" en la siguiente pantalla (Accesibilidad).")
+                    .setPositiveButton("Activar", (d, w) -> startSafe(new Intent(Settings.ACTION_ACCESSIBILITY_SETTINGS)))
+                    .setNegativeButton("Ahora no", null)
+                    .show();
+        }
+    }
+
+    private boolean guardianEnabled() {
+        try {
+            String list = Settings.Secure.getString(getContentResolver(), Settings.Secure.ENABLED_ACCESSIBILITY_SERVICES);
+            return list != null && list.contains(getPackageName() + "/");
+        } catch (Exception e) {
+            return false;
+        }
     }
 
     @Override
