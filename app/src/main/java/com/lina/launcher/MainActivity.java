@@ -284,7 +284,8 @@ public class MainActivity extends Activity {
                     + "\nLaunchers: " + WatchService.homesText
                     + "\nApp al frente: " + WatchService.lastFront
                     + "\nVeces que abrio Lina: " + WatchService.launches
-                    + "\nEventos: " + WatchService.lastEvents
+                    + "\nRevisiones: " + WatchService.checks + " (con Lina atras: " + WatchService.bgChecks + ")"
+                    + "\nEventos:\n   " + WatchService.lastEvents
                     + "\nError: " + WatchService.lastError
                     + "\nAndroid: " + Build.VERSION.RELEASE + " (" + Build.VERSION.SDK_INT + ")";
         }

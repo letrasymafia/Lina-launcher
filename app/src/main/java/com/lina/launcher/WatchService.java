@@ -112,36 +112,49 @@ public class WatchService extends Service {
         homesText = homePackages.toString();
     }
 
+    // Estado que se conserva entre revisiones
+    private long homeFg = 0, homeBg = 0, meFg = 0, queryFrom = 0;
+    private final java.util.ArrayDeque<String> eventLog = new java.util.ArrayDeque<>();
+    static volatile int checks = 0, bgChecks = 0;
+
     private void check() {
         try {
             UsageStatsManager usm = (UsageStatsManager) getSystemService(Context.USAGE_STATS_SERVICE);
             if (usm == null) return;
             long now = System.currentTimeMillis();
-            UsageEvents events = usm.queryEvents(now - 20000, now);
+            if (queryFrom == 0) queryFrom = now - 30000;
+            UsageEvents events = usm.queryEvents(queryFrom, now);
             UsageEvents.Event e = new UsageEvents.Event();
-            String front = null;
             if (homePackages.isEmpty()) loadHomePackages();
             String me = getPackageName();
-            long homeFg = 0, homeBg = 0, meFg = 0;
-            StringBuilder log = new StringBuilder();
+            long newest = queryFrom;
             while (events.hasNextEvent()) {
                 events.getNextEvent(e);
                 int type = e.getEventType();
                 String pkg = e.getPackageName();
+                long ts = e.getTimeStamp();
+                if (ts > newest) newest = ts;
                 if (type != UsageEvents.Event.MOVE_TO_FOREGROUND && type != UsageEvents.Event.MOVE_TO_BACKGROUND) continue;
                 boolean fg = type == UsageEvents.Event.MOVE_TO_FOREGROUND;
-                if (fg) front = pkg;
+                if (fg) lastFront = pkg;
                 if (homePackages.contains(pkg)) {
-                    if (fg) homeFg = e.getTimeStamp(); else homeBg = e.getTimeStamp();
+                    if (fg) homeFg = Math.max(homeFg, ts); else homeBg = Math.max(homeBg, ts);
                 } else if (pkg.equals(me) && fg) {
-                    meFg = e.getTimeStamp();
+                    meFg = Math.max(meFg, ts);
                 }
-                log.append(pkg.replace("com.", "")).append(fg ? "+" : "-").append("  ");
-                if (log.length() > 400) log.delete(0, log.length() - 400);
+                java.util.Calendar c = java.util.Calendar.getInstance();
+                c.setTimeInMillis(ts);
+                eventLog.addLast(String.format(java.util.Locale.ROOT, "%02d:%02d:%02d %s%s",
+                        c.get(java.util.Calendar.HOUR_OF_DAY), c.get(java.util.Calendar.MINUTE), c.get(java.util.Calendar.SECOND),
+                        pkg.replace("com.", ""), fg ? "+" : "-"));
+                while (eventLog.size() > 10) eventLog.removeFirst();
             }
-            lastCheck = System.currentTimeMillis();
-            if (log.length() > 0) lastEvents = log.toString();
-            if (front != null) lastFront = front;
+            // la próxima vez solo pedimos lo nuevo
+            queryFrom = newest + 1;
+            checks++;
+            if (!me.equals(lastFront)) bgChecks++;
+            lastCheck = now;
+            if (!eventLog.isEmpty()) lastEvents = android.text.TextUtils.join("\n   ", eventLog);
             // El launcher de fábrica está abierto (entró y no ha salido) y es más nuevo que Lina
             if (homeFg > 0 && homeFg >= homeBg && homeFg > meFg) openLina();
         } catch (Exception ex) {
