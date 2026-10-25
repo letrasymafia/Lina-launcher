@@ -3,6 +3,7 @@ package com.lina.launcher;
 import android.Manifest;
 import android.app.Activity;
 import android.app.AlertDialog;
+import android.app.AppOpsManager;
 import android.content.ActivityNotFoundException;
 import android.content.Context;
 import android.content.Intent;
@@ -19,6 +20,7 @@ import android.media.AudioManager;
 import android.net.Uri;
 import android.os.Build;
 import android.os.Bundle;
+import android.os.Process;
 import android.provider.Settings;
 import android.view.KeyEvent;
 import android.webkit.JavascriptInterface;
@@ -37,7 +39,8 @@ import java.util.Locale;
 public class MainActivity extends Activity {
 
     private WebView web;
-    private static boolean askedGuardian = false;
+    private static boolean askedUsage = false;
+    private static boolean askedOverlay = false;
     private LocationManager locationManager;
     private final LocationListener locationListener = new LocationListener() {
         @Override
@@ -120,21 +123,34 @@ public class MainActivity extends Activity {
     @Override
     protected void onResume() {
         super.onResume();
-        if (!askedGuardian && !guardianEnabled()) {
-            askedGuardian = true;
+        WatchService.start(this);
+        if (!askedUsage && !hasUsageAccess()) {
+            askedUsage = true;
             new AlertDialog.Builder(this)
-                    .setTitle("Dejar a Lina como inicio")
-                    .setMessage("Para que la casita siempre muestre esta pantalla, activa \"Lina siempre al inicio\" en la siguiente pantalla (Accesibilidad).")
-                    .setPositiveButton("Activar", (d, w) -> startSafe(new Intent(Settings.ACTION_ACCESSIBILITY_SETTINGS)))
+                    .setTitle("Dejar a Lina como inicio (1 de 2)")
+                    .setMessage("En la siguiente pantalla busca \"Lina\" y activa \"Permitir acceso de uso\". Luego vuelve con el botón atrás.")
+                    .setPositiveButton("Activar", (d, w) -> startSafe(new Intent(Settings.ACTION_USAGE_ACCESS_SETTINGS)))
+                    .setNegativeButton("Ahora no", null)
+                    .show();
+        } else if (!askedOverlay && hasUsageAccess() && !Settings.canDrawOverlays(this)) {
+            askedOverlay = true;
+            new AlertDialog.Builder(this)
+                    .setTitle("Dejar a Lina como inicio (2 de 2)")
+                    .setMessage("En la siguiente pantalla activa \"Mostrar sobre otras apps\" para Lina. Luego vuelve con el botón atrás.")
+                    .setPositiveButton("Activar", (d, w) -> {
+                        Intent i = new Intent(Settings.ACTION_MANAGE_OVERLAY_PERMISSION, Uri.parse("package:" + getPackageName()));
+                        if (!startSafe(i)) startSafe(new Intent(Settings.ACTION_MANAGE_OVERLAY_PERMISSION));
+                    })
                     .setNegativeButton("Ahora no", null)
                     .show();
         }
     }
 
-    private boolean guardianEnabled() {
+    private boolean hasUsageAccess() {
         try {
-            String list = Settings.Secure.getString(getContentResolver(), Settings.Secure.ENABLED_ACCESSIBILITY_SERVICES);
-            return list != null && list.contains(getPackageName() + "/");
+            AppOpsManager ops = (AppOpsManager) getSystemService(Context.APP_OPS_SERVICE);
+            int mode = ops.checkOpNoThrow(AppOpsManager.OPSTR_GET_USAGE_STATS, Process.myUid(), getPackageName());
+            return mode == AppOpsManager.MODE_ALLOWED;
         } catch (Exception e) {
             return false;
         }
