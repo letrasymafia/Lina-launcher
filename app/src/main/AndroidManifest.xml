@@ -51,10 +51,13 @@
 
         <service
             android:name=".WatchService"
+            android:process=":vigilante"
+            android:stopWithTask="false"
             android:exported="false" />
 
         <receiver
             android:name=".BootReceiver"
+            android:process=":vigilante"
             android:exported="true">
             <intent-filter>
                 <action android:name="android.intent.action.BOOT_COMPLETED" />

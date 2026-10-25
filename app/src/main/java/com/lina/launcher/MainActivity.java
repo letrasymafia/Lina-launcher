@@ -154,7 +154,7 @@ public class MainActivity extends Activity {
             if (mode == AppOpsManager.MODE_DEFAULT
                     && checkSelfPermission(Manifest.permission.PACKAGE_USAGE_STATS) == PackageManager.PERMISSION_GRANTED) return true;
             // Si el servicio ya logra ver qué app está al frente, el permiso funciona
-            return !"-".equals(WatchService.lastFront);
+            return new java.io.File(getFilesDir(), "diag.txt").exists();
         } catch (Exception e) {
             return false;
         }
@@ -276,18 +276,20 @@ public class MainActivity extends Activity {
     private class Bridge {
         @JavascriptInterface
         public String diag() {
-            long ago = WatchService.lastCheck == 0 ? -1 : (System.currentTimeMillis() - WatchService.lastCheck) / 1000;
-            return "Servicio: " + (WatchService.running ? "SI" : "NO")
-                    + "\nUltima revision: hace " + ago + " s"
-                    + "\nAcceso de uso: " + (hasUsageAccess() ? "SI" : "NO")
-                    + "\nSobre otras apps: " + (Settings.canDrawOverlays(MainActivity.this) ? "SI" : "NO")
-                    + "\nLaunchers: " + WatchService.homesText
-                    + "\nApp al frente: " + WatchService.lastFront
-                    + "\nVeces que abrio Lina: " + WatchService.launches
-                    + "\nRevisiones: " + WatchService.checks + " (con Lina atras: " + WatchService.bgChecks + ")"
-                    + "\nEventos:\n   " + WatchService.lastEvents
-                    + "\nError: " + WatchService.lastError
-                    + "\nAndroid: " + Build.VERSION.RELEASE + " (" + Build.VERSION.SDK_INT + ")";
+            String file = "(el vigilante aun no ha escrito datos)";
+            try {
+                java.io.File f = new java.io.File(getFilesDir(), "diag.txt");
+                byte[] buf = new byte[(int) f.length()];
+                java.io.FileInputStream in = new java.io.FileInputStream(f);
+                int n = in.read(buf);
+                in.close();
+                file = new String(buf, 0, Math.max(n, 0), "UTF-8");
+            } catch (Exception ignored) { }
+            return "Acceso de uso: " + (hasUsageAccess() ? "SI" : "NO")
+                    + "   Sobre otras apps: " + (Settings.canDrawOverlays(MainActivity.this) ? "SI" : "NO")
+                    + "   Android: " + Build.VERSION.RELEASE
+                    + "\nPantalla Lina abierta en proceso " + android.os.Process.myPid()
+                    + "\n" + file;
         }
 
         @JavascriptInterface

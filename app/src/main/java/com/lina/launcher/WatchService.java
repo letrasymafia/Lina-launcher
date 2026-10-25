@@ -32,6 +32,8 @@ public class WatchService extends Service {
     static volatile String lastError = "-";
     static volatile int launches = 0;
     static volatile String lastEvents = "-";
+    static volatile String fgOk = "-";
+    static volatile long startedAt = 0;
     static volatile long lastCheck = 0;
 
     private final Handler handler = new Handler(Looper.getMainLooper());
@@ -42,6 +44,7 @@ public class WatchService extends Service {
         @Override
         public void run() {
             check();
+            if (checks % 3 == 0) writeDiag();
             handler.postDelayed(this, 700);
         }
     };
@@ -72,9 +75,14 @@ public class WatchService extends Service {
                 .setContentTitle("Lina")
                 .setContentText("Pantalla de inicio activa")
                 .setOngoing(true);
+        startedAt = System.currentTimeMillis();
         try {
             startForeground(77, b.build());
-        } catch (Exception ignored) { }
+            fgOk = "SI";
+        } catch (Exception ex) {
+            fgOk = "NO: " + ex;
+        }
+        scheduleRestart(20000);
         running = true;
         loadHomePackages();
         handler.post(loop);
@@ -82,7 +90,46 @@ public class WatchService extends Service {
 
     @Override
     public int onStartCommand(Intent intent, int flags, int startId) {
+        scheduleRestart(20000);
         return START_STICKY;
+    }
+
+    @Override
+    public void onTaskRemoved(Intent rootIntent) {
+        scheduleRestart(1000);
+        super.onTaskRemoved(rootIntent);
+    }
+
+    /** Si la pantalla mata el proceso, la alarma lo vuelve a arrancar. */
+    private void scheduleRestart(long delay) {
+        try {
+            android.app.AlarmManager am = (android.app.AlarmManager) getSystemService(ALARM_SERVICE);
+            Intent i = new Intent(this, WatchService.class);
+            android.app.PendingIntent pi = Build.VERSION.SDK_INT >= 26
+                    ? android.app.PendingIntent.getForegroundService(this, 1, i, android.app.PendingIntent.FLAG_UPDATE_CURRENT)
+                    : android.app.PendingIntent.getService(this, 1, i, android.app.PendingIntent.FLAG_UPDATE_CURRENT);
+            long at = System.currentTimeMillis() + delay;
+            if (am != null) am.setExactAndAllowWhileIdle(android.app.AlarmManager.RTC_WAKEUP, at, pi);
+        } catch (Exception ignored) { }
+    }
+
+    private void writeDiag() {
+        try {
+            java.text.SimpleDateFormat f = new java.text.SimpleDateFormat("HH:mm:ss", java.util.Locale.ROOT);
+            String t = "Vigilante iniciado: " + f.format(new java.util.Date(startedAt))
+                    + "  (proceso " + android.os.Process.myPid() + ")"
+                    + "\nPrimer plano: " + fgOk
+                    + "\nUltima revision: " + f.format(new java.util.Date(lastCheck))
+                    + "\nLaunchers: " + homesText
+                    + "\nApp al frente: " + lastFront
+                    + "\nVeces que abrio Lina: " + launches
+                    + "\nRevisiones: " + checks + " (con Lina atras: " + bgChecks + ")"
+                    + "\nEventos:\n   " + lastEvents
+                    + "\nError: " + lastError;
+            java.io.FileOutputStream out = new java.io.FileOutputStream(new java.io.File(getFilesDir(), "diag.txt"));
+            out.write(t.getBytes("UTF-8"));
+            out.close();
+        } catch (Exception ignored) { }
     }
 
     @Override
